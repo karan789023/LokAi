@@ -1,15 +1,9 @@
 import React from 'react';
-import Sidebar from './components/Sidebar';
-import ChatUI from './components/ChatUI';
+import HomePage from '../src/Pages/homePage.jsx';
 import './index.css';
 
 function App() {
-  return (
-    <div className="app-container">
-      <Sidebar />
-      <ChatUI />
-    </div>
-  );
+  return <HomePage />;
 }
 
 export default App;
