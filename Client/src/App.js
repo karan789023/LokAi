@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-import React from 'react';
-import HomePage from '../src/Pages/homePage.jsx';
-import './index.css';
-import '../src/Pages/chat.jsx';
-=======
 import React from "react";
 import {
   BrowserRouter,
@@ -13,10 +7,11 @@ import {
 } from "react-router-dom";
 
 // Pages
+
 import HomePage from "./Pages/homePage.jsx";
 import Chat from "./Pages/chat.jsx";
-
->>>>>>> 6c40eb7d5e9d45e3e114564b3f613cb7b3b73da8
+import SignPage from "../src/Pages/signpage.jsx";
+import SignupPage from "./Pages/signuppage.jsx";
 
 function App() {
   return (
@@ -27,6 +22,10 @@ function App() {
 
         {/* Chat */}
         <Route path="/chat" element={<Chat />} />
+
+        {/* Sign Page */}
+        <Route path="/sign" element={<SignPage />} />
+        <Route path="/signup" element={<SignupPage />}/>
 
         {/* Unknown URL → Home */}
         <Route path="*" element={<Navigate to="/" replace />} />

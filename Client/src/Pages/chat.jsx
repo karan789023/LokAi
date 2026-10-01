@@ -1,43 +1,3 @@
-<<<<<<< HEAD
-import React from 'react';
-import { ChatContainer } from '../components/ChatContainer';
-
-export const ChatPage = () => {
-  return (
-    <div className="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
-      {/* Navigation / History Sidebar */}
-      <aside className="w-64 border-r border-gray-200 dark:border-gray-800 flex flex-col justify-between p-4 bg-white dark:bg-gray-950 hidden md:flex">
-        <div>
-          <div className="flex items-center gap-2 mb-6 px-2">
-            <div className="w-3 h-3 rounded-full bg-blue-600" />
-            <span className="font-semibold text-sm tracking-wide text-gray-900 dark:text-white">
-              HYBRID AI
-            </span>
-          </div>
-
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-          >
-            + New Conversation
-          </button>
-        </div>
-
-        <div className="border-t border-gray-200 dark:border-gray-800 pt-3 px-2">
-          <p className="text-[11px] text-gray-400 dark:text-gray-500 font-mono">
-            Orchestrator: Dynamic Routing
-          </p>
-        </div>
-      </aside>
-
-      {/* Main Chat View */}
-      <main className="flex-1 flex flex-col h-full relative">
-        <ChatContainer />
-      </main>
-    </div>
-  );
-};
-=======
 import React, { useRef, useState } from "react";
 import {
   Plus,
@@ -89,11 +49,13 @@ export default function LokAIChat() {
 
   const [message, setMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [messages, setMessages] = useState([
     {
       id: 1,
       sender: "ai",
+      type: "text",
       text: "Hello! I'm LokAI 👋 How can I help you today?",
     },
   ]);
@@ -119,29 +81,115 @@ export default function LokAIChat() {
     }
   };
 
-  const sendMessage = () => {
-    if (!message.trim()) return;
+  const sendMessage = async () => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage || isLoading) return;
 
-    const newMessage = {
-      id: Date.now(),
+    const userMessageId = Date.now();
+    const aiMessageId = userMessageId + 1;
+
+    // 1. User message state me add karein
+    const userMessage = {
+      id: userMessageId,
       sender: "user",
-      text: message,
+      type: "text",
+      text: trimmedMessage,
     };
 
-    setMessages((prev) => [...prev, newMessage]);
     setMessage("");
 
-    // Demo AI response
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: "ai",
-          text: "Got it! I'm processing your request. Connect your backend/API here to generate the real AI response.",
+    // 2. Check: Kya user ne photo / image generate karne ko bola hai?
+    const isImageRequest = /image|photo|picture|draw|banao|generate image|wallpaper/i.test(trimmedMessage);
+
+    if (isImageRequest) {
+      // AI message placeholder (loading state)
+      const placeholderAi = {
+        id: aiMessageId,
+        sender: "ai",
+        type: "image",
+        imageUrl: "",
+        text: `Creating image for: "${trimmedMessage}"...`,
+      };
+
+      setMessages((prev) => [...prev, userMessage, placeholderAi]);
+      setIsLoading(true);
+
+      // Fast AI Image Generation URL
+      const encodedPrompt = encodeURIComponent(trimmedMessage);
+      const generatedImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
+
+      // Image set karein
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiMessageId
+            ? {
+                ...msg,
+                imageUrl: generatedImageUrl,
+                text: `Here is your generated image: "${trimmedMessage}"`,
+              }
+            : msg
+        )
+      );
+
+      setIsLoading(false);
+      return;
+    }
+
+    // 3. Normal Text Chat (Streaming)
+    const placeholderAiMessage = {
+      id: aiMessageId,
+      sender: "ai",
+      type: "text",
+      text: "",
+    };
+
+    setMessages((prev) => [...prev, userMessage, placeholderAiMessage]);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("http://localhost:5000/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ]);
-    }, 600);
+        body: JSON.stringify({ prompt: trimmedMessage }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to connect to backend server");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+
+        // Stream text token-by-token
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMessageId ? { ...msg, text: msg.text + chunk } : msg
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Chat error:", error);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiMessageId
+            ? {
+                ...msg,
+                text: "Maaf kijiye, backend server se connect hone me dikkat aa rahi hai. Check karein ki server chalu hai ya nahi.",
+              }
+            : msg
+        )
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -347,16 +395,16 @@ export default function LokAIChat() {
                   </h2>
 
                   <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500">
-                    Ask LokAI anything, upload a PDF, or explore your
-                    documents with AI-powered conversations.
+                    Ask LokAI anything, generate AI images, or explore your
+                    documents with intelligent conversations.
                   </p>
 
                   <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
 
                     {[
-                      "Explain this PDF",
-                      "Summarize a document",
-                      "Help me learn DBMS",
+                      "Generate an image of a cybernetic horse",
+                      "Summarize my documents",
+                      "Help me learn DBMS concepts",
                     ].map((item) => (
                       <button
                         key={item}
@@ -390,13 +438,29 @@ export default function LokAIChat() {
                     )}
 
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-7 ${
+                      className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-7 ${
                         msg.sender === "user"
                           ? "rounded-br-md bg-slate-900 text-white"
                           : "rounded-bl-md border border-slate-200 bg-white text-slate-700 shadow-sm"
                       }`}
                     >
-                      {msg.text}
+                      {/* Image Render */}
+                      {msg.type === "image" ? (
+                        <div className="space-y-3">
+                          <p className="font-medium text-slate-800">{msg.text}</p>
+                          {msg.imageUrl && (
+                            <img
+                              src={msg.imageUrl}
+                              alt="Generated by LokAI"
+                              className="w-full max-h-[420px] rounded-xl object-cover border border-slate-200 shadow-sm"
+                              loading="lazy"
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        /* Text Render */
+                        msg.text || (isLoading && msg.sender === "ai" ? "LokAI is thinking..." : "")
+                      )}
                     </div>
 
                     {msg.sender === "user" && (
@@ -461,14 +525,14 @@ export default function LokAIChat() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Message LokAI..."
+                    placeholder="Message LokAI or ask to generate an image..."
                     rows={1}
                     className="max-h-32 min-h-[42px] flex-1 resize-none bg-transparent px-1 py-2.5 text-sm text-slate-800 outline-none placeholder:text-slate-400"
                   />
 
                   <button
                     onClick={sendMessage}
-                    disabled={!message.trim()}
+                    disabled={!message.trim() || isLoading}
                     className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     <Send size={18} />
@@ -489,4 +553,3 @@ export default function LokAIChat() {
     </div>
   );
 }
->>>>>>> 6c40eb7d5e9d45e3e114564b3f613cb7b3b73da8
